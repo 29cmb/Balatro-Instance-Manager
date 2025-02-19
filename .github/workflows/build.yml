@@ -21,13 +21,20 @@ jobs:
         dotnet-version: '8.0.x'
     
     - name: Restore dependencies
-      run: dotnet restore
+      run: dotnet restore "Balatro Instance Manager.sln"
     
     - name: Build and Publish
-      run: dotnet publish -r win-x64 -c Release /p:PublishSingleFile=true /p:IncludeAllContentForSelfExtract=true
+      shell: pwsh
+      run: |
+        dotnet publish "Balatro Instance Manager.sln" `
+          -c Release `
+          -r win-x64 `
+          /p:PublishSingleFile=true `
+          /p:IncludeAllContentForSelfExtract=true
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: BalatroInstanceManager
-        path: bin/Release/net8.0-windows/win-x64/publish/*.exe
+        path: |
+          "Balatro Instance Manager/bin/Release/net8.0-windows/win-x64/publish/*.exe"
