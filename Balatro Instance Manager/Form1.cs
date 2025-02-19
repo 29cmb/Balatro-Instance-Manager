@@ -68,7 +68,7 @@ namespace Balatro_Instance_Manager
             string modProfilesPath = Path.Combine(balatroPathStr, "ModProfiles");
             if (!IsDirectoryAccessible(modProfilesPath))
             {
-                MessageBox.Show("Balatro data path is not accessible, make sure to check the path before launching.", "Information", MessageBoxButtons.OK);
+                MessageBox.Show("Balatro data path is not accessible, make sure to check the path before launching.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -166,7 +166,7 @@ namespace Balatro_Instance_Manager
 
             if (!IsDirectoryAccessible(balatroSteamPath.Text))
             {
-                MessageBox.Show("Balatro steam path is not accessible. Please check the path and try again.", "Information", MessageBoxButtons.OK);
+                MessageBox.Show("Balatro steam path is not accessible. Please check the path and try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -182,14 +182,14 @@ namespace Balatro_Instance_Manager
         {
             if (!IsDirectoryAccessible(balatroSteamDirStr))
             {
-                MessageBox.Show("Balatro steam path is not accessible. Please check the path and try again.", "Information", MessageBoxButtons.OK);
+                MessageBox.Show("Balatro steam path is not accessible. Please check the path and try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
             string modProfilesPath = Path.Combine(balatroPathStr, "ModProfiles");
             if (!IsDirectoryAccessible(modProfilesPath))
             {
-                MessageBox.Show("Balatro data path is not accessible, make sure to check the path before launching.", "Information", MessageBoxButtons.OK);
+                MessageBox.Show("Balatro data path is not accessible, make sure to check the path before launching.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -274,11 +274,11 @@ namespace Balatro_Instance_Manager
             string modsDirectory = Path.Combine(balatroPathStr, "Mods");
             if (!Directory.Exists(modsDirectory))
             {
-                MessageBox.Show("Mods directory does not exist. Make sure you have lovely installed and have opened the game at least once since then and try again.", "Error", MessageBoxButtons.OK);
+                MessageBox.Show("Mods directory does not exist. Make sure you have lovely installed and have opened the game at least once since then and try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            if(deselected.Checked) ClearProfileMods();
+            if (deselected.Checked) ClearProfileMods();
 
             foreach (var mod in validMods)
             {
@@ -306,11 +306,19 @@ namespace Balatro_Instance_Manager
             string exePath = Path.Combine(balatroSteamDirStr, "Balatro.exe");
             if (File.Exists(exePath))
             {
-                Process.Start(exePath);
+                string processName = Path.GetFileNameWithoutExtension(exePath);
+                if (Process.GetProcessesByName(processName).Length > 0 && !multiInstance.Checked)
+                {
+                    MessageBox.Show("Balatro is already running. Please close the application and try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                else
+                {
+                    Process.Start(exePath);
+                }
             }
             else
             {
-                MessageBox.Show("Executable not found. Please check the path and try again.", "Error", MessageBoxButtons.OK);
+                MessageBox.Show("Executable not found. Please check the path and try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         private List<string> GetProfileMods()
@@ -398,25 +406,33 @@ namespace Balatro_Instance_Manager
             string modProfilesPath = Path.Combine(balatroPathStr, "ModProfiles");
             if (!IsDirectoryAccessible(modProfilesPath))
             {
-                MessageBox.Show("Balatro data path is not accessible, make sure to check the path before launching.", "Information", MessageBoxButtons.OK);
+                MessageBox.Show("Balatro data path is not accessible, make sure to check the path before launching.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
             if (!IsDirectoryAccessible(balatroSteamDirStr))
             {
-                MessageBox.Show("Balatro steam path is not accessible. Please check the path and try again.", "Information", MessageBoxButtons.OK);
+                MessageBox.Show("Balatro steam path is not accessible. Please check the path and try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
             string modsDirectory = Path.Combine(balatroPathStr, "Mods");
             if (!Directory.Exists(modsDirectory))
             {
-                MessageBox.Show("Mods directory does not exist. Make sure you have lovely installed and have opened the game at least once since then and try again.", "Error", MessageBoxButtons.OK);
+                MessageBox.Show("Mods directory does not exist. Make sure you have lovely installed and have opened the game at least once since then and try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
             ClearProfileMods();
-            MessageBox.Show("Mods cleared successfully.", "Information", MessageBoxButtons.OK);
+            MessageBox.Show("Mods cleared successfully.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void multiInstance_CheckedChanged(object sender, EventArgs e)
+        {
+            if (multiInstance.Checked)
+            {
+                MessageBox.Show("Multi-instance is unstable and might lead to data overwriting. Please proceed with caution.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
     }
 

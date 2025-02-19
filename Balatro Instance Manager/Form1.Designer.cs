@@ -37,6 +37,7 @@
             lovelyIgnore = new CheckBox();
             clear = new Button();
             deselected = new CheckBox();
+            multiInstance = new CheckBox();
             SuspendLayout();
             // 
             // instances
@@ -139,11 +140,23 @@
             deselected.Text = "Delete mods from deselected profiles";
             deselected.UseVisualStyleBackColor = true;
             // 
+            // multiInstance
+            // 
+            multiInstance.AutoSize = true;
+            multiInstance.Location = new Point(389, 108);
+            multiInstance.Name = "multiInstance";
+            multiInstance.Size = new Size(136, 19);
+            multiInstance.TabIndex = 9;
+            multiInstance.Text = "Allow multi-instance";
+            multiInstance.UseVisualStyleBackColor = true;
+            multiInstance.CheckedChanged += multiInstance_CheckedChanged;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 447);
+            Controls.Add(multiInstance);
             Controls.Add(deselected);
             Controls.Add(clear);
             Controls.Add(lovelyIgnore);
@@ -171,5 +184,6 @@
         private CheckBox lovelyIgnore;
         private Button clear;
         private CheckBox deselected;
+        private CheckBox multiInstance;
     }
 }
