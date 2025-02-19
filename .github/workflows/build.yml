@@ -30,11 +30,11 @@ jobs:
           -c Release `
           -r win-x64 `
           /p:PublishSingleFile=true `
-          /p:IncludeAllContentForSelfExtract=true
+          /p:IncludeAllContentForSelfExtract=true `
+          /p:EnableCompressionInSingleFile=true
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: BalatroInstanceManager
         path: |
           "Balatro Instance Manager/bin/Release/net8.0-windows/win-x64/publish/*.exe"
