@@ -34,5 +34,17 @@ namespace Balatro_Instance_Manager.Properties {
                 this["BalatroPath"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string BalatroSteamPath {
+            get {
+                return ((string)(this["BalatroSteamPath"]));
+            }
+            set {
+                this["BalatroSteamPath"] = value;
+            }
+        }
     }
 }
