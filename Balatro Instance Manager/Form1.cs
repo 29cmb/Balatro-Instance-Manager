@@ -1,13 +1,13 @@
 using System.Diagnostics;
 using Newtonsoft.Json;
-
+using Balatro_Instance_Manager.Helpers;
 
 namespace Balatro_Instance_Manager
 {
     public partial class Form1 : Form
     {
-        string balatroPathStr;
-        string balatroSteamDirStr;
+        private string? _balatroPathStr;
+        private string? _balatroSteamDirStr;
         public Form1()
         {
             InitializeComponent();
@@ -15,21 +15,23 @@ namespace Balatro_Instance_Manager
 
         private void Form1_Load_1(object sender, EventArgs e)
         {
-            balatroPathStr = Properties.Settings.Default.BalatroPath;
-            if (string.IsNullOrEmpty(balatroPathStr))
+            LocalizationManager.LoadLocalizations();
+            
+            _balatroPathStr = Properties.Settings.Default.BalatroPath;
+            if (string.IsNullOrEmpty(_balatroPathStr))
             {
-                balatroPathStr = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Balatro");
+                _balatroPathStr = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Balatro");
             }
 
-            balatroSteamDirStr = Properties.Settings.Default.BalatroSteamPath;
-            if (string.IsNullOrEmpty(balatroPathStr))
+            _balatroSteamDirStr = Properties.Settings.Default.BalatroSteamPath;
+            if (string.IsNullOrEmpty(_balatroPathStr))
             {
-                balatroSteamDirStr = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Balatro";
+                _balatroSteamDirStr = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Balatro";
             }
 
-            balatroPath.Text = balatroPathStr;
-            balatroSteamPath.Text = balatroSteamDirStr;
-            loadProfiles();
+            balatroPath.Text = _balatroPathStr;
+            balatroSteamPath.Text = _balatroSteamDirStr;
+            LoadProfiles();
         }
 
         private void balatroPath_Unfocused(object sender, EventArgs e)
@@ -41,16 +43,16 @@ namespace Balatro_Instance_Manager
 
             if (!IsDirectoryAccessible(balatroPath.Text))
             {
-                MessageBox.Show("Balatro data path is not accessible. Please check the path and try again.", "Information", MessageBoxButtons.OK);
+                MessageBox.Show(LocalizationManager.LocalizedStrings["DataInaccessible"], LocalizationManager.LocalizedStrings["InfoHeader"], MessageBoxButtons.OK);
                 return;
             }
 
-            balatroPathStr = balatroPath.Text;
+            _balatroPathStr = balatroPath.Text;
 
-            Properties.Settings.Default.BalatroPath = balatroPathStr;
+            Properties.Settings.Default.BalatroPath = _balatroPathStr;
             Properties.Settings.Default.Save();
 
-            loadProfiles();
+            LoadProfiles();
         }
 
         private void balatroPath_KeyDown(object sender, KeyEventArgs e)
@@ -63,12 +65,18 @@ namespace Balatro_Instance_Manager
             }
         }
 
-        private void loadProfiles()
+        private void LoadProfiles()
         {
-            string modProfilesPath = Path.Combine(balatroPathStr, "ModProfiles");
+            if (_balatroPathStr == null)
+            {
+                MessageBox.Show(LocalizationManager.LocalizedStrings["DataInaccessible"], LocalizationManager.LocalizedStrings["ErrorHeader"], MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            
+            var modProfilesPath = Path.Combine(_balatroPathStr, "ModProfiles");
             if (!IsDirectoryAccessible(modProfilesPath))
             {
-                MessageBox.Show("Balatro data path is not accessible, make sure to check the path before launching.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(LocalizationManager.LocalizedStrings["DataInaccessible"], LocalizationManager.LocalizedStrings["ErrorHeader"], MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -79,41 +87,33 @@ namespace Balatro_Instance_Manager
 
             foreach (var subdirectory in subdirectories)
             {
-                string profilePath = Path.Combine(subdirectory, "profile.json");
+                var profilePath = Path.Combine(subdirectory, "profile.json");
                 if (!File.Exists(profilePath))
                     File.WriteAllText(profilePath, "{\"Enabled\": false}");
+                
+                var jsonContent = File.ReadAllText(profilePath);
+                var profile = JsonConvert.DeserializeObject<Types.Profile>(jsonContent);
+                if (profile == null) return;
+                
+                var checkBox = new CheckBox();
+                checkBox.Text = Path.GetFileName(subdirectory);
+                checkBox.Checked = profile.Enabled;
+                checkBox.CheckedChanged += OnCheckClicked;
 
-                try
-                {
-                    string jsonContent = File.ReadAllText(profilePath);
-                    var profile = JsonConvert.DeserializeObject<Profile>(jsonContent);
-
-                    CheckBox checkBox = new CheckBox();
-                    checkBox.Text = Path.GetFileName(subdirectory);
-                    checkBox.Checked = profile.Enabled;
-                    checkBox.CheckedChanged += onCheckClicked;
-
-                    instances.Controls.Add(checkBox);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error reading JSON in {subdirectory}: {ex.Message}");
-                }
+                instances.Controls.Add(checkBox);
             }
         }
-        private bool IsDirectoryAccessible(string path)
+        private static bool IsDirectoryAccessible(string path)
         {
             try
             {
                 if (Directory.Exists(path))
                 {
-                    var files = Directory.GetFiles(path);
+                    Directory.GetFiles(path);
                     return true;
                 }
-                else
-                {
-                    return false;
-                }
+
+                return false;
             }
             catch (UnauthorizedAccessException)
             {
@@ -125,26 +125,18 @@ namespace Balatro_Instance_Manager
             }
         }
 
-        private void onCheckClicked(object? sender, EventArgs e)
+        private void OnCheckClicked(object? sender, EventArgs e)
         {
-            if (sender is CheckBox checkBox)
-            {
-                string profilePath = Path.Combine(balatroPathStr, "ModProfiles", checkBox.Text, "profile.json");
-                try
-                {
-                    string jsonContent = File.ReadAllText(profilePath);
-                    var profile = JsonConvert.DeserializeObject<Profile>(jsonContent);
-                    if (profile != null)
-                    {
-                        profile.Enabled = checkBox.Checked;
-                        File.WriteAllText(profilePath, JsonConvert.SerializeObject(profile));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error reading JSON in {profilePath}: {ex.Message}");
-                }
-            }
+            if (sender is not CheckBox checkBox || _balatroPathStr == null) return;
+            var profilePath = Path.Combine(_balatroPathStr, "ModProfiles", checkBox.Text, "profile.json");
+            if (!File.Exists(profilePath)) return;
+            
+            var jsonContent = File.ReadAllText(profilePath);
+            var profile = JsonConvert.DeserializeObject<Types.Profile>(jsonContent);
+            if (profile == null) return;
+            
+            profile.Enabled = checkBox.Checked;
+            File.WriteAllText(profilePath, JsonConvert.SerializeObject(profile));
         }
 
         private void balatroSteamPath_KeyDown(object sender, KeyEventArgs e)
@@ -166,77 +158,74 @@ namespace Balatro_Instance_Manager
 
             if (!IsDirectoryAccessible(balatroSteamPath.Text))
             {
-                MessageBox.Show("Balatro steam path is not accessible. Please check the path and try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(LocalizationManager.LocalizedStrings["SteamInaccessible"], LocalizationManager.LocalizedStrings["ErrorHeader"], MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            balatroSteamDirStr = balatroSteamPath.Text;
+            _balatroSteamDirStr = balatroSteamPath.Text;
 
-            Properties.Settings.Default.BalatroSteamPath = balatroSteamDirStr;
+            Properties.Settings.Default.BalatroSteamPath = _balatroSteamDirStr;
             Properties.Settings.Default.Save();
 
-            loadProfiles();
+            LoadProfiles();
         }
 
         private void launch_Click(object sender, EventArgs e)
         {
-            if (!IsDirectoryAccessible(balatroSteamDirStr))
+            if (_balatroSteamDirStr == null || !IsDirectoryAccessible(_balatroSteamDirStr))
             {
-                MessageBox.Show("Balatro steam path is not accessible. Please check the path and try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(LocalizationManager.LocalizedStrings["SteamInaccessible"], LocalizationManager.LocalizedStrings["ErrorHeader"], MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            
+            if (_balatroPathStr == null)
+            {
+                MessageBox.Show(LocalizationManager.LocalizedStrings["DataInaccessible"], LocalizationManager.LocalizedStrings["ErrorHeader"], MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            string modProfilesPath = Path.Combine(balatroPathStr, "ModProfiles");
+            var modProfilesPath = Path.Combine(_balatroPathStr, "ModProfiles");
             if (!IsDirectoryAccessible(modProfilesPath))
             {
-                MessageBox.Show("Balatro data path is not accessible, make sure to check the path before launching.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(LocalizationManager.LocalizedStrings["DataInaccessible"],
+                    LocalizationManager.LocalizedStrings["ErrorHeader"], MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            List<string> mods = GetProfileMods();
-            if (mods == null) return;
+            var mods = GetProfileMods();
+            if (mods == null || mods.Count == 0) return;
 
-            HashSet<string> loadedModIds = new HashSet<string>();
-            List<string> validMods = new List<string>();
+            var loadedModIds = new HashSet<string>();
+            var validMods = new List<string>();
 
             foreach (var mod in mods)
             {
                 var jsonFiles = Directory.GetFiles(mod, "*.json");
-
-                bool isValidMod = true;
+                var isValidMod = true;
 
                 foreach (var jsonFile in jsonFiles)
                 {
-                    try
-                    {
-                        string jsonContent = File.ReadAllText(jsonFile);
-                        var modData = JsonConvert.DeserializeObject<ModData>(jsonContent);
+                    var jsonContent = File.ReadAllText(jsonFile);
+                    var modData = JsonConvert.DeserializeObject<Types.ModData>(jsonContent);
 
-                        if (modData != null)
+                    if (modData != null)
+                    {
+                        if (!string.IsNullOrEmpty(modData.Id))
                         {
-                            if (!string.IsNullOrEmpty(modData.id))
+                            if (loadedModIds.Contains(modData.Id))
                             {
-                                if (loadedModIds.Contains(modData.id))
-                                {
-                                    isValidMod = false;
-                                    break;
-                                }
-                            }
-                            else if (!string.IsNullOrEmpty(modData.name))
-                            {
-                                if (loadedModIds.Contains(modData.name))
-                                {
-                                    isValidMod = false;
-                                    break;
-                                }
+                                isValidMod = false;
+                                break;
                             }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Error reading JSON in {jsonFile}: {ex.Message}");
-                        isValidMod = false;
-                        break;
+                        else if (!string.IsNullOrEmpty(modData.Name))
+                        {
+                            if (loadedModIds.Contains(modData.Name))
+                            {
+                                isValidMod = false;
+                                break;
+                            }
+                        }
                     }
                 }
 
@@ -245,36 +234,30 @@ namespace Balatro_Instance_Manager
                     validMods.Add(mod);
                     foreach (var jsonFile in jsonFiles)
                     {
-                        try
-                        {
-                            string jsonContent = File.ReadAllText(jsonFile);
-                            var modData = JsonConvert.DeserializeObject<ModData>(jsonContent);
+                        string jsonContent = File.ReadAllText(jsonFile);
+                        var modData = JsonConvert.DeserializeObject<Types.ModData>(jsonContent);
 
-                            if (modData != null)
-                            {
-                                if (!string.IsNullOrEmpty(modData.id))
-                                {
-                                    loadedModIds.Add(modData.id);
-                                }
-                                else if (!string.IsNullOrEmpty(modData.name))
-                                {
-                                    loadedModIds.Add(modData.name);
-                                }
-                            }
-                        }
-                        catch (Exception ex)
+                        if (modData != null)
                         {
-                            Console.WriteLine($"Error reading JSON in {jsonFile}: {ex.Message}");
+                            if (!string.IsNullOrEmpty(modData.Id))
+                            {
+                                loadedModIds.Add(modData.Id);
+                            }
+                            else if (!string.IsNullOrEmpty(modData.Name))
+                            {
+                                loadedModIds.Add(modData.Name);
+                            }
                         }
                     }
                 }
             }
 
-
-            string modsDirectory = Path.Combine(balatroPathStr, "Mods");
+            var modsDirectory = Path.Combine(_balatroPathStr, "Mods");
             if (!Directory.Exists(modsDirectory))
             {
-                MessageBox.Show("Mods directory does not exist. Make sure you have lovely installed and have opened the game at least once since then and try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    LocalizationManager.LocalizedStrings["NoModsDirectory"],
+                    LocalizationManager.LocalizedStrings["ErrorHeader"], MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -282,34 +265,28 @@ namespace Balatro_Instance_Manager
 
             foreach (var mod in validMods)
             {
-                string output = Path.Combine(modsDirectory, Path.GetFileName(mod));
+                var output = Path.Combine(modsDirectory, Path.GetFileName(mod));
                 CopyDirectory(mod, output);
                 File.WriteAllText(Path.Combine(output, ".bim_profile"), "");
                 if (lovelyIgnore.Checked)
                 {
-                    string lovelyIgnorePath = Path.Combine(output, ".lovelyignore");
+                    var lovelyIgnorePath = Path.Combine(output, ".lovelyignore");
                     if (File.Exists(lovelyIgnorePath))
                     {
-                        try
-                        {
-                            File.Delete(lovelyIgnorePath);
-                        }
-                        catch (Exception)
-                        {
-                            continue;
-                        }
+                        File.Delete(lovelyIgnorePath);
                     }
                 }
             }
 
 
-            string exePath = Path.Combine(balatroSteamDirStr, "Balatro.exe");
+            var exePath = Path.Combine(_balatroSteamDirStr, "Balatro.exe");
             if (File.Exists(exePath))
             {
-                string processName = Path.GetFileNameWithoutExtension(exePath);
+                var processName = Path.GetFileNameWithoutExtension(exePath);
                 if (Process.GetProcessesByName(processName).Length > 0 && !multiInstance.Checked)
                 {
-                    MessageBox.Show("Balatro is already running. Please close the application and try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show(LocalizationManager.LocalizedStrings["AlreadyRunning"], LocalizationManager.LocalizedStrings["ErrorHeader"],
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
                 else
                 {
@@ -318,133 +295,120 @@ namespace Balatro_Instance_Manager
             }
             else
             {
-                MessageBox.Show("Executable not found. Please check the path and try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(LocalizationManager.LocalizedStrings["BalatroNotFound"], LocalizationManager.LocalizedStrings["ErrorHeader"],
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-        private List<string> GetProfileMods()
+
+        private List<string>? GetProfileMods()
         {
-            string modProfilesPath = Path.Combine(balatroPathStr, "ModProfiles");
+            if (_balatroPathStr == null) return null;
+            var modProfilesPath = Path.Combine(_balatroPathStr, "ModProfiles");
             if (!IsDirectoryAccessible(modProfilesPath)) return null;
 
             Directory.CreateDirectory(modProfilesPath);
 
             var subdirectories = Directory.GetDirectories(modProfilesPath);
 
-            List<string> mods = new List<string>();
+            var mods = new List<string>();
 
             foreach (var subdirectory in subdirectories)
             {
-                string profilePath = Path.Combine(subdirectory, "profile.json");
+                var profilePath = Path.Combine(subdirectory, "profile.json");
                 if (!File.Exists(profilePath))
                     File.WriteAllText(profilePath, "{\"Enabled\": false}");
-
-                try
-                {
-                    string jsonContent = File.ReadAllText(profilePath);
-                    var profile = JsonConvert.DeserializeObject<Profile>(jsonContent);
-
-                    if (!profile.Enabled) continue;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error reading JSON in {subdirectory}: {ex.Message}");
-                    continue;
-                }
+                
+                var jsonContent = File.ReadAllText(profilePath);
+                var profile = JsonConvert.DeserializeObject<Types.Profile>(jsonContent);
+                if (profile is not {Enabled: true}) continue;
 
                 var modsInProfile = Directory.GetDirectories(subdirectory);
-                foreach (var mod in modsInProfile)
-                {
-                    mods.Add(mod);
-                }
+                mods.AddRange(modsInProfile);
             }
 
             return mods;
         }
 
-        private void CopyDirectory(string sourceDir, string destDir)
+        private static void CopyDirectory(string sourceDir, string destDir)
         {
             Directory.CreateDirectory(destDir);
 
             foreach (var file in Directory.GetFiles(sourceDir))
             {
-                string destFile = Path.Combine(destDir, Path.GetFileName(file));
+                var destFile = Path.Combine(destDir, Path.GetFileName(file));
                 File.Copy(file, destFile, true);
             }
 
             foreach (var subdir in Directory.GetDirectories(sourceDir))
             {
-                string destSubdir = Path.Combine(destDir, Path.GetFileName(subdir));
+                var destSubdir = Path.Combine(destDir, Path.GetFileName(subdir));
                 CopyDirectory(subdir, destSubdir);
             }
         }
 
         private void ClearProfileMods()
         {
-            string modsDirectory = Path.Combine(balatroPathStr, "Mods");
+            if (_balatroPathStr == null) return;
+            var modsDirectory = Path.Combine(_balatroPathStr, "Mods");
             if (!Directory.Exists(modsDirectory)) return;
 
             var modFolders = Directory.GetDirectories(modsDirectory);
             foreach (var modFolder in modFolders)
             {
-                string bimProfilePath = Path.Combine(modFolder, ".bim_profile");
+                var bimProfilePath = Path.Combine(modFolder, ".bim_profile");
                 if (File.Exists(bimProfilePath))
                 {
-                    try
-                    {
-                        Directory.Delete(modFolder, true);
-                    }
-                    catch (Exception)
-                    {
-                        continue;
-                    }
+                    Directory.Delete(modFolder, true);
                 }
             }
         }
 
         private void clear_Click(object sender, EventArgs e)
         {
-            string modProfilesPath = Path.Combine(balatroPathStr, "ModProfiles");
+            if (_balatroPathStr == null)
+            {
+                MessageBox.Show(LocalizationManager.LocalizedStrings["DataInaccessible"],
+                    LocalizationManager.LocalizedStrings["ErrorHeader"], MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            
+            if (_balatroSteamDirStr == null)
+            {
+                MessageBox.Show(LocalizationManager.LocalizedStrings["SteamInaccessible"], LocalizationManager.LocalizedStrings["ErrorHeader"], MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            var modProfilesPath = Path.Combine(_balatroPathStr, "ModProfiles");
             if (!IsDirectoryAccessible(modProfilesPath))
             {
-                MessageBox.Show("Balatro data path is not accessible, make sure to check the path before launching.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(LocalizationManager.LocalizedStrings["DataInaccessible"], LocalizationManager.LocalizedStrings["ErrorHeader"], MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            if (!IsDirectoryAccessible(balatroSteamDirStr))
+            if (!IsDirectoryAccessible(_balatroSteamDirStr))
             {
-                MessageBox.Show("Balatro steam path is not accessible. Please check the path and try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(LocalizationManager.LocalizedStrings["SteamInaccessible"], LocalizationManager.LocalizedStrings["ErrorHeader"], MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            string modsDirectory = Path.Combine(balatroPathStr, "Mods");
+            var modsDirectory = Path.Combine(_balatroPathStr, "Mods");
             if (!Directory.Exists(modsDirectory))
             {
-                MessageBox.Show("Mods directory does not exist. Make sure you have lovely installed and have opened the game at least once since then and try again.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(LocalizationManager.LocalizedStrings["NoModsDirectory"], LocalizationManager.LocalizedStrings["ErrorHeader"], MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
             ClearProfileMods();
-            MessageBox.Show("Mods cleared successfully.", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(LocalizationManager.LocalizedStrings["ModsCleared"], LocalizationManager.LocalizedStrings["InfoHeader"], MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void multiInstance_CheckedChanged(object sender, EventArgs e)
         {
             if (multiInstance.Checked)
             {
-                MessageBox.Show("Multi-instance is unstable and might lead to data overwriting. Please proceed with caution.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(LocalizationManager.LocalizedStrings["MultiInstanceUnstable"], LocalizationManager.LocalizedStrings["WarningHeader"], MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
     }
 
-}
-
-public class Profile
-{
-    public bool Enabled { get; set; }
-}
-
-public class ModData
-{
-    public string id { get; set; }
-    public string name { get; set; }
 }
